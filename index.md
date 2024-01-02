@@ -1,4 +1,167 @@
 ---
 title: Welcome to my blog
 ---
-
+<!DOCTYPE html>
+<html>
+<head lang="en">
+    <meta charset="UTF-8">
+    <style>
+        body{
+            margin: 0;
+            padding: 0;
+            background: black;   
+        }
+    </style>
+</head>
+<body>
+<canvas id="mycanvas"></canvas>
+<script>
+    window.requestAnimationFrame=(function(){
+        return window.requestAnimationFrame||
+                        window.webkitRequestAnimationFrame||
+                        window.mozRequestAnimationFrame||
+                        function (callback){
+                            window.setTimeout(callback,1000)
+                        }
+    })();
+    var area=document.getElementById("mycanvas");
+    area.width=document.documentElement.clientWidth;
+    area.height=document.documentElement.clientHeight;
+    var ctx=area.getContext("2d");
+    hue=120;
+    timerTick = 0;
+    timerTotal=5;
+    fireworks=[];
+    particles=[];
+    function random(min,max){
+        return Math.random()*(max-min)+min;
+    }
+    function distans(sx,sy,tx,ty){
+        var xdistan=sx-tx;
+        var ydistan=sy-ty;
+        return Math.sqrt((Math.pow(xdistan,2)+Math.pow(ydistan,2)));
+    }
+    function Firework(sx,sy,tx,ty){
+        this.x=sx;
+        this.y=sy;
+        this.sx=sx;
+        this.sy=sy;
+        this.tx=tx;
+        this.ty=ty;
+        this.targetDistances=distans(sx,sy,tx,ty);
+        this.distancesc=0;
+        this.guiji=[];
+        this.guijicount=3;
+        while(this.guijicount--){
+            this.guiji.push([this.x,this.y]);
+        }
+        this.angle=Math.atan2(ty-sy,tx-sx);
+        this.speed=2;
+        this.jiasudu=1.05;
+        this.brightness=random(50,70);
+        this.targetRad=5;
+    }
+    Firework.prototype.update=function(index){
+        this.guiji.pop();
+        this.guiji.push([this.x,this.y]);
+        if(this.targetRad<8){
+            this.targetRad+=0.3;
+        }else{
+            this.targetRad=1;
+        }
+        this.speed*=this.jiasudu;
+        var vx=Math.cos(this.angle)*this.speed;
+        var vy=Math.sin(this.angle)*this.speed;
+        			         this.distancesc=distans(this.sx,this.sy,this.x+vx,this.y+vy);
+        if(this.distancesc>=this.targetDistances){
+            createparticals(this.tx,this.ty);
+            fireworks.splice(index,1)
+        }else{
+            this.x+=vx;
+            this.y+=vy;
+        }
+    }
+ 
+    Firework.prototype.draw=function(){
+        ctx.beginPath();
+        ctx.moveTo(this.guiji[this.guiji.length-1][0],this.guiji[this.guiji.length-1][1]);
+        ctx.lineTo(this.x,this.y);
+        ctx.strokeStyle='hsl('+hue+',100%,'+this.brightness+'%)';
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(this.tx,this.ty,this.targetRad,0,Math.PI*2);
+        ctx.stroke();
+    }
+    function Particle(x, y) {
+        this.x = x;
+        this.y = y;
+        this.guiji = [];
+        this.guijicount = 10;
+        while(this.guijicount--){
+            this.guiji.push([this.x,this.y]);
+        }
+        this.angle=random(0 , 2*Math.PI);
+        this.speed=random(1,10);
+        this.mocal=0.95;
+        this.gravity=0.98;
+        this.hue=random(hue-20,hue+20);
+        this.brightness=random(50,80);
+        this.alpha=1;
+        this.decay=random(0.015,0.03);
+    }
+    Particle.prototype.update=function(index){
+        this.guiji.pop();
+        this.guiji.unshift([this.x,this.y]);
+        this.speed*=this.mocal;
+        this.x+=Math.cos(this.angle)*this.speed;
+        this.y+=Math.sin(this.angle)*this.speed+this.gravity;
+        this.alpha-=this.decay;
+        if(this.alpha<=this.decay){
+            particles.splice(index,1)
+        }
+    }
+    Particle.prototype.draw=function(){
+        ctx.beginPath();
+        ctx.moveTo(this.guiji[this.guiji.length-1][0],this.guiji[this.guiji.length-1][1]);
+        ctx.lineTo(this.x,this.y);
+        ctx.strokeStyle='hsl('+hue+',100%,'+this.brightness+'%)';
+        ctx.stroke();
+    }
+    function createparticals(x,y){
+        var particalcount=500;
+        while(particalcount--){
+            particles.push(new Particle(x,y))
+        }
+    }
+    var clientw=document.documentElement.clientWidth;
+    var clienth=document.documentElement.clientHeight;
+    function loop(){
+        requestAnimationFrame(loop);
+        hue+=0.5;
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillRect(0,0,clientw,clienth);
+        ctx.fillStyle='rgb(0,0,0,0.5)';
+        ctx.globalCompositeOperation='lighter';
+        var i=fireworks.length;
+        while(i--){
+            fireworks[i].draw();
+            fireworks[i].update(i);
+        }
+        var i=particles.length;
+        while(i--){
+            particles[i].draw();
+            particles[i].update(i);
+        }
+        if(timerTick>=timerTotal)
+        {
+            fireworks.push(new Firework(clientw/2,clienth,random(0,clientw),random(0,clienth)));
+            timerTick=0;
+        }
+        else{
+            timerTick++;
+        }
+    }
+    window.οnlοad=loop();
+</script>
+</body>
+</html>
