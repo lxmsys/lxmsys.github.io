@@ -3,32 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎆 浪漫烟花 - 完美修复版</title>
+    <title>✨ 极光梦幻烟花</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: black; overflow: hidden; font-family: 'Microsoft YaHei', sans-serif; }
+        body { background: #050505; overflow: hidden; font-family: 'Microsoft YaHei', sans-serif; }
         #mycanvas { display: block; cursor: crosshair; }
         #hint {
             position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            color: rgba(255,255,255,0.6); font-size: 18px;
-            animation: pulse 2s infinite;
-            pointer-events: none; /* 防止文字遮挡点击 */
+            color: rgba(255,255,255,0.4); font-size: 14px; letter-spacing: 2px;
+            animation: pulse 2s infinite; pointer-events: none;
         }
-        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
     </style>
 </head>
 <body>
     <canvas id="mycanvas"></canvas>
-    <div id="hint">点击屏幕 🎆 发送烟花</div>
+    <div id="hint">点击屏幕 · 绽放浪漫</div>
     
     <script>
     const CONFIG = {
-        particleCount: 120,
-        gravity: 0.12,
-        friction: 0.95,
+        particleCount: 150,     // 粒子数量
+        gravity: 0.1,          // 重力
+        friction: 0.96,        // 空气阻力
         autoFirework: true,
-        autoInterval: 30, // 帧计数，约每 0.5-1 秒自动发射
-        textMessages: ["新年快乐", "Happy New Year", "🎊 万事如意 🎊", "心想事成", "心动瞬间"]
+        autoInterval: 40,
+        // 预设高级色系：金、粉蓝、极光绿、魅惑紫
+        palettes: [30, 200, 150, 280, 0] 
     };
 
     const canvas = document.getElementById("mycanvas");
@@ -36,31 +36,27 @@
     let clientW = canvas.width = window.innerWidth;
     let clientH = canvas.height = window.innerHeight;
 
-    let hue = 120;
-    let timerTick = 0;
-    let fireworks = [];
-    let particles = [];
-    let texts = [];
+    let fireworks = [], particles = [], texts = [];
 
     function random(min, max) { return Math.random() * (max - min) + min; }
     function distance(sx, sy, tx, ty) { return Math.sqrt((tx - sx) ** 2 + (ty - sy) ** 2); }
 
-    // 烟花升空类
     class Firework {
         constructor(sx, sy, tx, ty) {
             this.x = sx; this.y = sy; this.sx = sx; this.sy = sy;
             this.tx = tx; this.ty = ty;
             this.targetDistance = distance(sx, sy, tx, ty);
             this.distanceTraveled = 0;
-            // 修复点：预填充轨迹数组，防止第一帧 draw 报错
-            this.trail = []; 
-            this.trailLength = 3;
+            this.trail = [];
+            this.trailLength = 4;
             while(this.trailLength--) { this.trail.push({x: sx, y: sy}); }
             
             this.angle = Math.atan2(ty - sy, tx - sx);
             this.speed = 2; 
             this.acceleration = 1.04;
-            this.brightness = random(50, 70);
+            // 为每一次烟花随机选定一个色相主值
+            this.hue = CONFIG.palettes[Math.floor(Math.random() * CONFIG.palettes.length)];
+            this.brightness = random(60, 80);
         }
         update(index) {
             this.trail.pop(); 
@@ -71,8 +67,7 @@
             this.distanceTraveled = distance(this.sx, this.sy, this.x + vx, this.y + vy);
             
             if (this.distanceTraveled >= this.targetDistance) {
-                createParticles(this.tx, this.ty);
-                createText(this.tx, this.ty);
+                createParticles(this.tx, this.ty, this.hue);
                 fireworks.splice(index, 1);
             } else {
                 this.x += vx; this.y += vy;
@@ -82,27 +77,28 @@
             ctx.beginPath();
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             ctx.lineTo(this.x, this.y);
-            ctx.strokeStyle = `hsl(${hue}, 100%, ${this.brightness}%)`;
-            ctx.lineWidth = 2; 
+            // 升空时的颜色稍微淡一点，带点白色光芒
+            ctx.strokeStyle = `hsl(${this.hue}, 100%, 80%)`;
+            ctx.lineWidth = 1.5; 
             ctx.stroke();
         }
     }
 
-    // 爆炸粒子类
     class Particle {
-        constructor(x, y) {
+        constructor(x, y, baseHue) {
             this.x = x; this.y = y;
-            this.trail = []; this.trailLength = 5;
+            this.trail = []; this.trailLength = 6;
             while(this.trailLength--) { this.trail.push({x: x, y: y}); }
             
             this.angle = random(0, Math.PI * 2);
             this.speed = random(1, 10);
             this.friction = CONFIG.friction; 
             this.gravity = CONFIG.gravity;
-            this.hue = random(hue - 40, hue + 40);
+            // 核心修复：粒子颜色在主色相附近波动，视觉更和谐
+            this.hue = random(baseHue - 20, baseHue + 20);
             this.brightness = random(50, 80);
             this.alpha = 1; 
-            this.decay = random(0.01, 0.02);
+            this.decay = random(0.012, 0.025);
         }
         update(index) {
             this.trail.pop(); 
@@ -117,46 +113,16 @@
             ctx.beginPath();
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             ctx.lineTo(this.x, this.y);
+            // 粒子核心亮，边缘带颜色
             ctx.strokeStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, ${this.alpha})`;
-            ctx.lineWidth = 1.5; 
+            ctx.lineWidth = 2; 
             ctx.stroke();
         }
     }
 
-    // 漂浮文字类
-    class FloatingText {
-        constructor(x, y, text) {
-            this.x = x; this.y = y; this.text = text;
-            this.alpha = 1; this.velocity = -1.5;
-            this.hue = random(0, 360);
-        }
-        update(index) {
-            this.y += this.velocity; 
-            this.alpha -= 0.005;
-            if (this.alpha <= 0) texts.splice(index, 1);
-        }
-        draw() {
-            ctx.save();
-            ctx.font = "bold 32px 'Microsoft YaHei', sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillStyle = `hsla(${this.hue}, 100%, 70%, ${this.alpha})`;
-            ctx.shadowColor = `hsla(${this.hue}, 100%, 50%, ${this.alpha})`;
-            ctx.shadowBlur = 15;
-            ctx.fillText(this.text, this.x, this.y);
-            ctx.restore();
-        }
-    }
-
     function createFirework(sx, sy, tx, ty) { fireworks.push(new Firework(sx, sy, tx, ty)); }
-    function createParticles(x, y) { for (let i = 0; i < CONFIG.particleCount; i++) particles.push(new Particle(x, y)); }
-    function createText(x, y) { 
-        if (Math.random() > 0.6) { 
-            const text = CONFIG.textMessages[Math.floor(Math.random() * CONFIG.textMessages.length)]; 
-            texts.push(new FloatingText(x, y - 40, text)); 
-        } 
-    }
+    function createParticles(x, y, hue) { for (let i = 0; i < CONFIG.particleCount; i++) particles.push(new Particle(x, y, hue)); }
 
-    // 事件监听
     canvas.addEventListener('mousedown', (e) => {
         createFirework(clientW / 2, clientH, e.clientX, e.clientY);
     });
@@ -168,32 +134,24 @@
 
     function loop() {
         requestAnimationFrame(loop);
-        hue += 0.5;
         
-        // 拖尾渐隐效果
+        // 更加深邃的背景擦除
         ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
         ctx.fillRect(0, 0, clientW, clientH);
         ctx.globalCompositeOperation = 'lighter';
         
-        // 更新并绘制所有元素
         let i = fireworks.length; while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
         let j = particles.length; while(j--) { particles[j].draw(); particles[j].update(j); }
-        let k = texts.length; while(k--) { texts[k].draw(); texts[k].update(k); }
         
-        // 自动发射
         if (CONFIG.autoFirework) {
+            let timerTick = (window.tick || 0) + 1;
+            window.tick = timerTick;
             if (timerTick >= CONFIG.autoInterval) {
-                createFirework(random(clientW * 0.2, clientW * 0.8), clientH, random(clientW * 0.1, clientW * 0.9), random(clientH * 0.1, clientH * 0.5));
-                timerTick = 0;
+                createFirework(random(clientW * 0.1, clientW * 0.9), clientH, random(clientW * 0.1, clientW * 0.9), random(clientH * 0.1, clientH * 0.4));
+                window.tick = 0;
             }
-            timerTick++;
         }
-    }
-
-    // 初始发射
-    for (let i = 0; i < 3; i++) {
-        setTimeout(() => createFirework(random(100, clientW - 100), clientH, random(100, clientW - 100), random(100, clientH / 2)), i * 400);
     }
 
     loop();
