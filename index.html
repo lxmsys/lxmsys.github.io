@@ -6,7 +6,7 @@
     <title>hihi</title>
     <style>
         * { margin: 0; padding: 0; }
-        body { background: #010105; overflow: hidden; cursor: crosshair; }
+        body { background: #000; overflow: hidden; cursor: crosshair; }
         canvas { display: block; }
     </style>
 </head>
@@ -16,11 +16,11 @@
     <script>
     const CONFIG = {
         particleCount: 160,     
-        gravity: 0.1,          
-        friction: 0.95,        
+        gravity: 0.08,          
+        friction: 0.96,        
         autoFirework: true,
-        autoInterval: 45,
-        palettes: [180, 200, 280, 320, 45] 
+        autoInterval: 40, // 自动发射间隔（值越小越快）
+        palettes: [180, 210, 280, 330, 45] 
     };
 
     const canvas = document.getElementById("mycanvas");
@@ -30,49 +30,36 @@
 
     let fireworks = [], particles = [];
     let currentHue = 180;
+    let tick = 0; // 独立的计数器
 
-    // --- 城堡 3.0：线条勾勒梦幻版 ---
+    function random(min, max) { return Math.random() * (max - min) + min; }
+
+    // --- 城堡 3.1：霓虹流光版 ---
     function drawCastle() {
         const cx = clientW / 2;
         const b = clientH - 5;
-        
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = `hsla(${currentHue}, 90%, 60%, 0.25)`;
+        ctx.strokeStyle = `hsla(${currentHue}, 90%, 60%, 0.3)`;
         ctx.lineWidth = 1;
         ctx.shadowBlur = 10;
-        ctx.shadowColor = `hsla(${currentHue}, 100%, 50%, 0.4)`;
+        ctx.shadowColor = `hsla(${currentHue}, 100%, 50%, 0.5)`;
 
-        // 绘制一组细长的梦幻尖塔
         function tower(x, w, h) {
             ctx.strokeRect(x - w/2, b - h, w, h);
-            // 尖顶细化
             ctx.beginPath();
             ctx.moveTo(x - w/2, b - h);
             ctx.lineTo(x, b - h - w * 1.5);
             ctx.lineTo(x + w/2, b - h);
             ctx.stroke();
-            // 内部装饰线
-            ctx.beginPath();
-            ctx.moveTo(x, b);
-            ctx.lineTo(x, b - h);
-            ctx.stroke();
         }
 
-        tower(cx, 30, 200);      // 主塔
-        tower(cx - 60, 20, 140); // 左侧塔
-        tower(cx + 60, 20, 140); // 右侧塔
-        tower(cx - 110, 15, 80); // 裙楼
-        tower(cx + 110, 15, 80); // 裙楼
-        
+        tower(cx, 35, 180);      // 主塔
+        tower(cx - 70, 25, 120); // 左侧塔
+        tower(cx + 70, 25, 120); // 右侧塔
+        tower(cx - 130, 15, 70); // 裙楼
+        tower(cx + 130, 15, 70); // 裙楼
         ctx.restore();
-    }
-
-    // --- 核心修改：从城堡底部的随机区域发射 ---
-    function getLaunchX() {
-        const cx = clientW / 2;
-        // 在城堡宽度范围内随机选择发射点
-        return random(cx - 140, cx + 140);
     }
 
     class Firework {
@@ -81,12 +68,10 @@
             this.sx = sx; this.sy = sy;
             this.tx = tx; this.ty = ty;
             this.trail = [];
-            this.trailLength = 4;
-            while(this.trailLength--) { this.trail.push({x: sx, y: sy}); }
-            
+            let len = 5; while(len--) this.trail.push({x: sx, y: sy});
             this.angle = Math.atan2(ty - sy, tx - sx);
             this.speed = 2; 
-            this.acc = 1.05;
+            this.acc = 1.045;
             this.hue = CONFIG.palettes[Math.floor(Math.random() * CONFIG.palettes.length)];
             this.targetDist = Math.sqrt((tx-sx)**2 + (ty-sy)**2);
             this.distTraveled = 0;
@@ -95,14 +80,13 @@
             this.trail.pop(); 
             this.trail.unshift({x: this.x, y: this.y});
             this.speed *= this.acc;
-            const vx = Math.cos(this.angle) * this.speed;
-            const vy = Math.sin(this.angle) * this.speed;
-            this.x += vx; this.y += vy;
+            this.x += Math.cos(this.angle) * this.speed;
+            this.y += Math.sin(this.angle) * this.speed;
             this.distTraveled += this.speed;
             
             if (this.distTraveled >= this.targetDist) {
                 currentHue = this.hue; 
-                createParticles(this.tx, this.ty, this.hue);
+                for (let i = 0; i < CONFIG.particleCount; i++) particles.push(new Particle(this.tx, this.ty, this.hue));
                 fireworks.splice(index, 1);
             }
         }
@@ -110,24 +94,23 @@
             ctx.beginPath();
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             ctx.lineTo(this.x, this.y);
-            ctx.strokeStyle = `hsla(${this.hue}, 100%, 80%, 0.9)`;
-            ctx.lineWidth = 1.5; 
+            ctx.strokeStyle = `hsla(${this.hue}, 100%, 80%, 1)`;
+            ctx.lineWidth = 2; 
             ctx.stroke();
         }
     }
 
     class Particle {
-        constructor(x, y, baseHue) {
+        constructor(x, y, hue) {
             this.x = x; this.y = y;
-            this.trail = []; this.trailLength = 8; 
-            while(this.trailLength--) { this.trail.push({x: x, y: y}); }
+            this.trail = []; let len = 10; while(len--) this.trail.push({x: x, y: y});
             this.angle = random(0, Math.PI * 2);
-            this.speed = random(1, 9);
+            this.speed = random(1, 10);
             this.friction = CONFIG.friction; 
             this.gravity = CONFIG.gravity;
-            this.hue = random(baseHue - 20, baseHue + 20);
+            this.hue = random(hue - 20, hue + 20);
             this.alpha = 1; 
-            this.decay = random(0.01, 0.022);
+            this.decay = random(0.01, 0.02);
         }
         update(index) {
             this.trail.pop(); 
@@ -143,18 +126,23 @@
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             for(let i=this.trail.length-2; i>=0; i--) ctx.lineTo(this.trail[i].x, this.trail[i].y);
             ctx.strokeStyle = `hsla(${this.hue}, 100%, 65%, ${this.alpha})`;
-            ctx.lineWidth = 2; 
+            ctx.lineWidth = 1.5; 
             ctx.stroke();
         }
     }
 
-    function createParticles(x, y, hue) { 
-        for (let i = 0; i < CONFIG.particleCount; i++) particles.push(new Particle(x, y, hue)); 
+    function launch() {
+        const cx = clientW / 2;
+        const sx = random(cx - 150, cx + 150);
+        const sy = clientH;
+        const tx = random(clientW * 0.1, clientW * 0.9);
+        const ty = random(clientH * 0.1, clientH * 0.45);
+        fireworks.push(new Firework(sx, sy, tx, ty));
     }
 
     canvas.addEventListener('mousedown', (e) => {
-        // 点击释放也从城堡底部范围升起
-        fireworks.push(new Firework(getLaunchX(), clientH, e.clientX, e.clientY));
+        const cx = clientW / 2;
+        fireworks.push(new Firework(random(cx - 150, cx + 150), clientH, e.clientX, e.clientY));
     });
 
     window.addEventListener('resize', () => {
@@ -165,7 +153,7 @@
     function loop() {
         requestAnimationFrame(loop);
         ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = 'rgba(0, 0, 5, 0.2)'; 
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
         ctx.fillRect(0, 0, clientW, clientH);
         
         drawCastle();
@@ -175,12 +163,10 @@
         let j = particles.length; while(j--) { particles[j].draw(); particles[j].update(j); }
         
         if (CONFIG.autoFirework) {
-            let timerTick = (window.tick || 0) + 1;
-            window.tick = timerTick;
-            if (timerTick >= CONFIG.autoInterval) {
-                // 自动释放点锁定在城堡底部区域
-                fireworks.push(new Firework(getLaunchX(), clientH, random(clientW*0.1, clientW*0.9), random(clientH*0.1, clientH*0.5)));
-                window.tick = 0;
+            tick++;
+            if (tick >= CONFIG.autoInterval) {
+                launch();
+                tick = 0;
             }
         }
     }
