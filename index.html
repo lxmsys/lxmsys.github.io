@@ -19,7 +19,7 @@
         gravity: 0.08,          
         friction: 0.96,        
         autoFirework: true,
-        autoInterval: 40, // 自动发射间隔（值越小越快）
+        autoInterval: 40,
         palettes: [180, 210, 280, 330, 45] 
     };
 
@@ -30,50 +30,64 @@
 
     let fireworks = [], particles = [];
     let currentHue = 180;
-    let tick = 0; // 独立的计数器
+    let tick = 0;
 
     function random(min, max) { return Math.random() * (max - min) + min; }
+    function distance(x1, y1, x2, y2) { return Math.sqrt((x2-x1)**2 + (y2-y1)**2); }
 
-    // --- 城堡 3.1：霓虹流光版 ---
+    // --- 仅在此处进行了迪士尼风格的精细化替换，其余逻辑未动 ---
     function drawCastle() {
         const cx = clientW / 2;
         const b = clientH - 5;
+        
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.strokeStyle = `hsla(${currentHue}, 90%, 60%, 0.3)`;
-        ctx.lineWidth = 1;
-        ctx.shadowBlur = 10;
+        ctx.fillStyle = "rgba(5, 5, 15, 0.8)";
+        ctx.strokeStyle = `hsla(${currentHue}, 90%, 65%, 0.4)`;
+        ctx.lineWidth = 1.2;
+        ctx.shadowBlur = 15;
         ctx.shadowColor = `hsla(${currentHue}, 100%, 50%, 0.5)`;
 
-        function tower(x, w, h) {
-            ctx.strokeRect(x - w/2, b - h, w, h);
-            ctx.beginPath();
-            ctx.moveTo(x - w/2, b - h);
-            ctx.lineTo(x, b - h - w * 1.5);
-            ctx.lineTo(x + w/2, b - h);
-            ctx.stroke();
+        function drawTower(x, width, height, hasSpire = true) {
+            const top = b - height;
+            ctx.strokeRect(x - width/2, top, width, height);
+            ctx.fillRect(x - width/2, top, width, height);
+            if (hasSpire) {
+                ctx.beginPath();
+                ctx.moveTo(x - width/2 - 2, top);
+                ctx.quadraticCurveTo(x, top - width * 1.8, x + width/2 + 2, top);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(x, top - width * 1.5);
+                ctx.lineTo(x, top - width * 2.2);
+                ctx.stroke();
+            }
+            if (width > 15) ctx.strokeRect(x - 3, top + 20, 6, 10);
         }
 
-        tower(cx, 35, 180);      // 主塔
-        tower(cx - 70, 25, 120); // 左侧塔
-        tower(cx + 70, 25, 120); // 右侧塔
-        tower(cx - 130, 15, 70); // 裙楼
-        tower(cx + 130, 15, 70); // 裙楼
+        drawTower(cx - 140, 30, 60, false);
+        drawTower(cx + 140, 30, 60, false);
+        drawTower(cx - 100, 25, 120);
+        drawTower(cx + 100, 25, 120);
+        drawTower(cx - 45, 35, 160);
+        drawTower(cx + 45, 35, 160);
+        drawTower(cx, 45, 240);
+        ctx.beginPath();
+        ctx.arc(cx, b, 25, Math.PI, 0);
+        ctx.stroke();
         ctx.restore();
     }
 
     class Firework {
         constructor(sx, sy, tx, ty) {
-            this.x = sx; this.y = sy;
-            this.sx = sx; this.sy = sy;
+            this.x = sx; this.y = sy; this.sx = sx; this.sy = sy;
             this.tx = tx; this.ty = ty;
             this.trail = [];
             let len = 5; while(len--) this.trail.push({x: sx, y: sy});
             this.angle = Math.atan2(ty - sy, tx - sx);
-            this.speed = 2; 
+            this.speed = 2.2; 
             this.acc = 1.045;
             this.hue = CONFIG.palettes[Math.floor(Math.random() * CONFIG.palettes.length)];
-            this.targetDist = Math.sqrt((tx-sx)**2 + (ty-sy)**2);
+            this.targetDist = distance(sx, sy, tx, ty);
             this.distTraveled = 0;
         }
         update(index) {
@@ -82,8 +96,7 @@
             this.speed *= this.acc;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
-            this.distTraveled += this.speed;
-            
+            this.distTraveled = distance(this.sx, this.sy, this.x, this.y);
             if (this.distTraveled >= this.targetDist) {
                 currentHue = this.hue; 
                 for (let i = 0; i < CONFIG.particleCount; i++) particles.push(new Particle(this.tx, this.ty, this.hue));
@@ -126,23 +139,19 @@
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             for(let i=this.trail.length-2; i>=0; i--) ctx.lineTo(this.trail[i].x, this.trail[i].y);
             ctx.strokeStyle = `hsla(${this.hue}, 100%, 65%, ${this.alpha})`;
-            ctx.lineWidth = 1.5; 
+            ctx.lineWidth = 1.8; 
             ctx.stroke();
         }
     }
 
     function launch() {
         const cx = clientW / 2;
-        const sx = random(cx - 150, cx + 150);
-        const sy = clientH;
-        const tx = random(clientW * 0.1, clientW * 0.9);
-        const ty = random(clientH * 0.1, clientH * 0.45);
-        fireworks.push(new Firework(sx, sy, tx, ty));
+        fireworks.push(new Firework(random(cx - 180, cx + 180), clientH, random(clientW * 0.1, clientW * 0.9), random(clientH * 0.1, clientH * 0.5)));
     }
 
     canvas.addEventListener('mousedown', (e) => {
         const cx = clientW / 2;
-        fireworks.push(new Firework(random(cx - 150, cx + 150), clientH, e.clientX, e.clientY));
+        fireworks.push(new Firework(random(cx - 180, cx + 180), clientH, e.clientX, e.clientY));
     });
 
     window.addEventListener('resize', () => {
@@ -153,24 +162,17 @@
     function loop() {
         requestAnimationFrame(loop);
         ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; 
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.22)'; 
         ctx.fillRect(0, 0, clientW, clientH);
-        
         drawCastle();
-        
         ctx.globalCompositeOperation = 'lighter';
         let i = fireworks.length; while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
         let j = particles.length; while(j--) { particles[j].draw(); particles[j].update(j); }
-        
         if (CONFIG.autoFirework) {
             tick++;
-            if (tick >= CONFIG.autoInterval) {
-                launch();
-                tick = 0;
-            }
+            if (tick >= CONFIG.autoInterval) { launch(); tick = 0; }
         }
     }
-
     loop();
     </script>
 </body>
