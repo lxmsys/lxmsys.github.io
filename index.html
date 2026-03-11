@@ -6,7 +6,7 @@
     <title>hihi</title>
     <style>
         * { margin: 0; padding: 0; }
-        body { background: #000; overflow: hidden; cursor: crosshair; }
+        body { background: #010105; overflow: hidden; cursor: crosshair; }
         canvas { display: block; }
     </style>
 </head>
@@ -15,11 +15,8 @@
     
     <script>
     const CONFIG = {
-        particleCount: 160,     
-        gravity: 0.08,          
-        friction: 0.96,        
-        autoFirework: true,
-        autoInterval: 40,
+        particleCount: 160, gravity: 0.08, friction: 0.96,
+        autoFirework: true, autoInterval: 40,
         palettes: [180, 210, 280, 330, 45] 
     };
 
@@ -29,93 +26,91 @@
     let clientH = canvas.height = window.innerHeight;
 
     let fireworks = [], particles = [];
-    let currentHue = 180;
+    let currentHue = 200;
     let tick = 0;
 
     function random(min, max) { return Math.random() * (max - min) + min; }
     function distance(x1, y1, x2, y2) { return Math.sqrt((x2-x1)**2 + (y2-y1)**2); }
 
-    // --- 精细化迪士尼风格城堡绘制逻辑 ---
+    // --- 纯手绘：迪士尼风圆柱塔楼城堡 ---
     function drawCastle() {
         const cx = clientW / 2;
         const b = clientH;
         
         ctx.save();
-        ctx.globalCompositeOperation = 'source-over';
-        
-        // 霓虹发光设置
-        ctx.strokeStyle = `hsla(${currentHue}, 100%, 70%, 0.4)`;
-        ctx.fillStyle = `hsla(${currentHue}, 100%, 10%, 0.7)`; // 城堡主体带一点深色填充
-        ctx.lineWidth = 1.5;
-        ctx.shadowBlur = 20;
+        ctx.strokeStyle = `hsla(${currentHue}, 100%, 75%, 0.45)`;
+        ctx.fillStyle = "rgba(5, 7, 20, 0.9)"; // 更有厚重感的暗色实体
+        ctx.lineWidth = 1.2;
+        ctx.shadowBlur = 15;
         ctx.shadowColor = `hsla(${currentHue}, 100%, 50%, 0.5)`;
 
-        // 绘制塔楼的通用函数
-        function tower(x, w, h, roofH, hasFlag = false) {
+        // 绘制带尖顶的圆柱塔楼
+        function cylinderTower(x, y, w, h, roofH) {
             // 塔身
             ctx.beginPath();
-            ctx.rect(x - w/2, b - h, w, h);
-            ctx.fill();
-            ctx.stroke();
-
-            // 塔屋顶 (带有弧度的圆锥顶)
+            ctx.rect(x - w/2, y - h, w, h);
+            ctx.fill(); ctx.stroke();
+            // 圆形屋顶 (等腰三角形略带弧度)
             ctx.beginPath();
-            ctx.moveTo(x - w/2 - 2, b - h);
-            ctx.quadraticCurveTo(x, b - h - roofH, x + w/2 + 2, b - h);
+            ctx.moveTo(x - w/2 - 3, y - h);
+            ctx.lineTo(x, y - h - roofH);
+            ctx.lineTo(x + w/2 + 3, y - h);
             ctx.closePath();
-            ctx.fill();
+            ctx.fill(); ctx.stroke();
+            // 顶尖旗帜
+            ctx.beginPath();
+            ctx.moveTo(x, y - h - roofH);
+            ctx.lineTo(x, y - h - roofH - 12);
             ctx.stroke();
-
-            // 旗杆
-            if (hasFlag) {
-                ctx.beginPath();
-                ctx.moveTo(x, b - h - roofH * 0.8);
-                ctx.lineTo(x, b - h - roofH - 15);
-                ctx.stroke();
-            }
         }
 
-        // 1. 最底层楼座
+        // 1. 基座城墙 (带锯齿)
         ctx.beginPath();
-        ctx.rect(cx - 150, b - 50, 300, 50);
+        ctx.rect(cx - 160, b - 60, 320, 60);
+        ctx.fill(); ctx.stroke();
+        for(let i = -160; i < 160; i += 20) {
+            ctx.strokeRect(cx + i, b - 70, 10, 10);
+        }
+
+        // 2. 第一层侧塔 (低而稳)
+        cylinderTower(cx - 130, b - 60, 35, 60, 50);
+        cylinderTower(cx + 130, b - 60, 35, 60, 50);
+
+        // 3. 第二层中心露台
+        ctx.beginPath();
+        ctx.rect(cx - 70, b - 160, 140, 100);
         ctx.fill(); ctx.stroke();
 
-        // 2. 两侧基座塔
-        tower(cx - 120, 40, 90, 60);
-        tower(cx + 120, 40, 90, 60);
+        // 4. 第二层副塔 (瘦长)
+        cylinderTower(cx - 60, b - 160, 25, 80, 70);
+        cylinderTower(cx + 60, b - 160, 25, 80, 70);
 
-        // 3. 次级主塔 (中间两根)
-        tower(cx - 55, 35, 160, 80, true);
-        tower(cx + 55, 35, 160, 80, true);
+        // 5. 最高核心主塔 (极细长)
+        cylinderTower(cx, b - 200, 40, 100, 120);
 
-        // 4. 最高主塔
-        tower(cx, 50, 220, 110, true);
-
-        // 5. 底部装饰拱门
+        // 6. 门洞
         ctx.beginPath();
-        ctx.arc(cx, b - 5, 25, Math.PI, 0);
+        ctx.arc(cx, b, 25, Math.PI, 0);
+        ctx.lineTo(cx + 25, b);
+        ctx.lineTo(cx - 25, b);
         ctx.stroke();
-        
+
         ctx.restore();
     }
 
     class Firework {
         constructor(sx, sy, tx, ty) {
-            this.x = sx; this.y = sy;
-            this.sx = sx; this.sy = sy;
+            this.x = sx; this.y = sy; this.sx = sx; this.sy = sy;
             this.tx = tx; this.ty = ty;
-            this.trail = [];
-            let len = 5; while(len--) this.trail.push({x: sx, y: sy});
+            this.trail = []; let len = 5; while(len--) this.trail.push({x: sx, y: sy});
             this.angle = Math.atan2(ty - sy, tx - sx);
-            this.speed = 2.2; 
-            this.acc = 1.045;
+            this.speed = 2.5; this.acc = 1.045;
             this.hue = CONFIG.palettes[Math.floor(Math.random() * CONFIG.palettes.length)];
             this.targetDist = distance(sx, sy, tx, ty);
             this.distTraveled = 0;
         }
         update(index) {
-            this.trail.pop(); 
-            this.trail.unshift({x: this.x, y: this.y});
+            this.trail.pop(); this.trail.unshift({x: this.x, y: this.y});
             this.speed *= this.acc;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed;
@@ -131,8 +126,7 @@
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             ctx.lineTo(this.x, this.y);
             ctx.strokeStyle = `hsla(${this.hue}, 100%, 80%, 1)`;
-            ctx.lineWidth = 2; 
-            ctx.stroke();
+            ctx.lineWidth = 2; ctx.stroke();
         }
     }
 
@@ -142,15 +136,12 @@
             this.trail = []; let len = 10; while(len--) this.trail.push({x: x, y: y});
             this.angle = random(0, Math.PI * 2);
             this.speed = random(1, 10);
-            this.friction = CONFIG.friction; 
-            this.gravity = CONFIG.gravity;
+            this.friction = CONFIG.friction; this.gravity = CONFIG.gravity;
             this.hue = random(hue - 20, hue + 20);
-            this.alpha = 1; 
-            this.decay = random(0.01, 0.02);
+            this.alpha = 1; this.decay = random(0.01, 0.02);
         }
         update(index) {
-            this.trail.pop(); 
-            this.trail.unshift({x: this.x, y: this.y});
+            this.trail.pop(); this.trail.unshift({x: this.x, y: this.y});
             this.speed *= this.friction;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed + this.gravity;
@@ -162,8 +153,7 @@
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             for(let i=this.trail.length-2; i>=0; i--) ctx.lineTo(this.trail[i].x, this.trail[i].y);
             ctx.strokeStyle = `hsla(${this.hue}, 100%, 65%, ${this.alpha})`;
-            ctx.lineWidth = 1.8; 
-            ctx.stroke();
+            ctx.lineWidth = 1.8; ctx.stroke();
         }
     }
 
@@ -185,15 +175,12 @@
     function loop() {
         requestAnimationFrame(loop);
         ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.22)'; 
+        ctx.fillStyle = 'rgba(0, 0, 5, 0.25)'; 
         ctx.fillRect(0, 0, clientW, clientH);
-        
         drawCastle();
-        
         ctx.globalCompositeOperation = 'lighter';
         let i = fireworks.length; while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
         let j = particles.length; while(j--) { particles[j].draw(); particles[j].update(j); }
-        
         if (CONFIG.autoFirework) {
             tick++;
             if (tick >= CONFIG.autoInterval) { launch(); tick = 0; }
