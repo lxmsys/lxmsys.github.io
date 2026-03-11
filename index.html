@@ -3,185 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>hihi</title>
+    <title>🏰 迪士尼城堡烟花</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #050505; overflow: hidden; font-family: 'Microsoft YaHei', sans-serif; }
-        #mycanvas { display: block; cursor: crosshair; }
-        #hint {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            color: rgba(255,255,255,0.3); font-size: 14px; letter-spacing: 2px;
-            animation: pulse 2s infinite; pointer-events: none;
-        }
-        @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+        body { background: #050510; overflow: hidden; }
+        #mycanvas { display: block; cursor: pointer; }
+        #hint { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,0.4); font-size: 14px; letter-spacing: 3px; animation: pulse 2s infinite; pointer-events: none; }
+        @keyframes pulse { 0%, 100% { opacity: 0.4; } 50% { opacity: 0.9; } }
     </style>
 </head>
 <body>
     <canvas id="mycanvas"></canvas>
-    <div id="hint">点击屏幕 · 绽放浪漫</div>
-    
+    <div id="hint">点击屏幕 · 绽放烟花</div>
     <script>
-    const CONFIG = {
-        particleCount: 150,     
-        gravity: 0.1,          
-        friction: 0.96,        
-        autoFirework: true,
-        autoInterval: 40,
-        palettes: [30, 200, 150, 280, 0] // 极光配色池
-    };
-
-    const canvas = document.getElementById("mycanvas");
-    const ctx = canvas.getContext("2d");
-    let clientW = canvas.width = window.innerWidth;
-    let clientH = canvas.height = window.innerHeight;
-
-    let fireworks = [], particles = [];
-    let currentCastleHue = 200; // 城堡初始颜色
-
+    const CONFIG = { particleCount: 120, gravity: 0.08, friction: 0.97, autoFirework: true, autoInterval: 35, palettes: [45, 200, 320, 180, 60, 280] };
+    const canvas = document.getElementById("mycanvas"); const ctx = canvas.getContext("2d");
+    let W = canvas.width = window.innerWidth; let H = canvas.height = window.innerHeight;
+    let fireworks = [], particles = []; let castleHue = 45;
     function random(min, max) { return Math.random() * (max - min) + min; }
     function distance(sx, sy, tx, ty) { return Math.sqrt((tx - sx) ** 2 + (ty - sy) ** 2); }
-
-    // --- 城堡轮廓变化逻辑 ---
-    function drawCastle() {
-        const cw = clientW / 2;
-        const b = clientH - 10;
-        
-        ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
-        ctx.beginPath();
-        // 轮廓颜色：随最新炸开的烟花色相(currentCastleHue)变化
-        ctx.strokeStyle = `hsla(${currentCastleHue}, 100%, 60%, 0.3)`;
-        ctx.lineWidth = 2;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = `hsla(${currentCastleHue}, 100%, 50%, 0.5)`;
-        
-        ctx.moveTo(cw - 160, b);
-        ctx.lineTo(cw - 160, b - 80);
-        ctx.lineTo(cw - 120, b - 130);
-        ctx.lineTo(cw - 80, b - 80);
-        ctx.lineTo(cw - 60, b - 180);
-        ctx.lineTo(cw, b - 260); // 顶尖
-        ctx.lineTo(cw + 60, b - 180);
-        ctx.lineTo(cw + 80, b - 80);
-        ctx.lineTo(cw + 120, b - 130);
-        ctx.lineTo(cw + 160, b - 80);
-        ctx.lineTo(cw + 160, b);
-        ctx.stroke();
+    function drawDisneyCastle() {
+        const cx = W / 2; const base = H - 20;
+        ctx.save(); ctx.globalCompositeOperation = 'lighter';
+        const gradient = ctx.createLinearGradient(cx - 200, base, cx + 200, base - 300);
+        gradient.addColorStop(0, `hsla(${castleHue}, 80%, 30%, 0.8)`);
+        gradient.addColorStop(0.5, `hsla(${castleHue}, 90%, 50%, 0.9)`);
+        gradient.addColorStop(1, `hsla(${castleHue}, 80%, 30%, 0.8)`);
+        ctx.fillStyle = gradient; ctx.shadowBlur = 30; ctx.shadowColor = `hsla(${castleHue}, 100%, 50%, 0.6)`;
+        ctx.beginPath(); ctx.moveTo(cx - 180, base); ctx.lineTo(cx - 180, base - 100);
+        ctx.lineTo(cx - 160, base - 100); ctx.lineTo(cx - 160, base - 180);
+        ctx.lineTo(cx - 140, base - 180); ctx.lineTo(cx - 140, base - 220);
+        ctx.lineTo(cx - 100, base - 180); ctx.lineTo(cx - 80, base - 180To(cx - );
+        ctx.line80, base - 280); ctx.lineTo(cx - 50, base - 280); ctx.lineTo(cx - 50, base - 200);
+        ctx.lineTo(cx - 30, base - 200); ctx.lineTo(cx - 30, base - 380);
+        ctx.arc(cx, base - 400, 30, Math.PI, 0); ctx.lineTo(cx + 30, base - 380);
+        ctx.lineTo(cx + 30, base - 200); ctx.lineTo(cx + 50, base - 200);
+        ctx.lineTo(cx + 50, base - 280); ctx.lineTo(cx + 80, base - 280);
+        ctx.lineTo(cx + 80, base - 180); ctx.lineTo(cx + 100, base - 180);
+        ctx.lineTo(cx + 140, base - 220); ctx.lineTo(cx + 140, base - 180);
+        ctx.lineTo(cx + 160, base - 180); ctx.lineTo(cx + 160, base - 100);
+        ctx.lineTo(cx + 180, base - 100); ctx.lineTo(cx + 180, base); ctx.closePath(); ctx.fill();
+        ctx.shadowBlur = 15; ctx.shadowColor = '#ffd700'; ctx.fillStyle = '#fff8dc';
+        ctx.beginPath(); ctx.arc(cx, base - 320, 8, 0, Math.PI * 2); ctx.fill();
+        [-60, 60].forEach(offset => { ctx.beginPath(); ctx.arc(cx + offset, base - 240, 6, 0, Math.PI * 2); ctx.fill(); });
+        ctx.fillStyle = '#fff'; [[cx, base - 420], [cx - 130, base - 240], [cx + 130, base - 240]].forEach(([sx, sy]) => drawStar(sx, sy, 5, 3, 6));
+        drawFlag(cx - 25, base - 390, castleHue); drawFlag(cx + 25, base - 390, (castleHue + 30) % 360);
         ctx.restore();
     }
-
+    function drawStar(cx, cy, outerR, innerR, points) {
+        ctx.beginPath();
+        for (let i = 0; i < points * 2; i++) {
+            const r = i % 2 === 0 ? outerR : innerR;
+            const angle = (i * Math.PI) / points - Math.PI / 2;
+            const x = cx + Math.cos(angle) * r, y = cy + Math.sin(angle) * r;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath(); ctx.fill();
+    }
+    function drawFlag(x, y, hue) {
+        ctx.save(); ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - 25); ctx.stroke();
+        ctx.fillStyle = `hsl(${hue}, 90%, 60%)`; ctx.shadowBlur = 10;
+        ctx.shadowColor = `hsl(${hue}, 100%, 50%, 0.8)`;
+        ctx.beginPath(); ctx.moveTo(x, y - 25); ctx.quadraticCurveTo(x + 10, y - 20, x + 20, y - 25);
+        ctx.quadraticCurveTo(x + 10, y - 30, x, y - 25); ctx.fill(); ctx.restore();
+    }
     class Firework {
         constructor(sx, sy, tx, ty) {
-            this.x = sx; this.y = sy; this.sx = sx; this.sy = sy;
-            this.tx = tx; this.ty = ty;
-            this.targetDistance = distance(sx, sy, tx, ty);
-            this.distanceTraveled = 0;
-            this.trail = [];
-            this.trailLength = 4;
+            this.x = sx; this.y = sy; this.sx = sx; this.sy = sy; this.tx = tx; this.ty = ty;
+            this.targetDistance = distance(sx, sy, tx, ty); this.distanceTraveled = 0;
+            this.trail = []; this.trailLength = 4;
             while(this.trailLength--) { this.trail.push({x: sx, y: sy}); }
-            
-            this.angle = Math.atan2(ty - sy, tx - sx);
-            this.speed = 2; 
-            this.acceleration = 1.04;
+            this.angle = Math.atan2(ty - sy, tx - sx); this.speed = 2; this.acceleration = 1.04;
             this.hue = CONFIG.palettes[Math.floor(Math.random() * CONFIG.palettes.length)];
         }
         update(index) {
-            this.trail.pop(); 
-            this.trail.unshift({x: this.x, y: this.y});
+            this.trail.pop(); this.trail.unshift({x: this.x, y: this.y});
             this.speed *= this.acceleration;
-            const vx = Math.cos(this.angle) * this.speed;
-            const vy = Math.sin(this.angle) * this.speed;
+            const vx = Math.cos(this.angle) * this.speed, vy = Math.sin(this.angle) * this.speed;
             this.distanceTraveled = distance(this.sx, this.sy, this.x + vx, this.y + vy);
-            
-            if (this.distanceTraveled >= this.targetDistance) {
-                currentCastleHue = this.hue; // 爆炸瞬间，通知城堡改变颜色
-                createParticles(this.tx, this.ty, this.hue);
-                fireworks.splice(index, 1);
-            } else {
-                this.x += vx; this.y += vy;
-            }
+            if (this.distanceTraveled >= this.targetDistance) { castleHue = this.hue; createParticles(this.tx, this.ty, this.hue); fireworks.splice(index, 1); }
+            else { this.x += vx; this.y += vy; }
         }
-        draw() {
-            ctx.beginPath();
-            ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
-            ctx.lineTo(this.x, this.y);
-            ctx.strokeStyle = `hsl(${this.hue}, 100%, 80%)`;
-            ctx.lineWidth = 1.5; 
-            ctx.stroke();
-        }
+        draw() { ctx.beginPath(); ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y); ctx.lineTo(this.x, this.y); ctx.strokeStyle = `hsl(${this.hue}, 100%, 80%)`; ctx.lineWidth = 2; ctx.stroke(); }
     }
-
     class Particle {
         constructor(x, y, baseHue) {
-            this.x = x; this.y = y;
-            this.trail = []; this.trailLength = 6;
+            this.x = x; this.y = y; this.trail = []; this.trailLength = 5;
             while(this.trailLength--) { this.trail.push({x: x, y: y}); }
-            
-            this.angle = random(0, Math.PI * 2);
-            this.speed = random(1, 10);
-            this.friction = CONFIG.friction; 
-            this.gravity = CONFIG.gravity;
-            this.hue = random(baseHue - 20, baseHue + 20);
-            this.brightness = random(50, 80);
-            this.alpha = 1; 
-            this.decay = random(0.012, 0.025);
+            this.angle = random(0, Math.PI * 2); this.speed = random(1, 8);
+            this.friction = CONFIG.friction; this.gravity = CONFIG.gravity;
+            this.hue = random(baseHue - 25, baseHue + 25); this.brightness = random(50, 80);
+            this.alpha = 1; this.decay = random(0.01, 0.02);
         }
         update(index) {
-            this.trail.pop(); 
-            this.trail.unshift({x: this.x, y: this.y});
+            this.trail.pop(); this.trail.unshift({x: this.x, y: this.y});
             this.speed *= this.friction;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed + this.gravity;
             this.alpha -= this.decay;
             if (this.alpha <= this.decay) particles.splice(index, 1);
         }
-        draw() {
-            ctx.beginPath();
-            ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
-            ctx.lineTo(this.x, this.y);
-            ctx.strokeStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, ${this.alpha})`;
-            ctx.lineWidth = 2; 
-            ctx.stroke();
-        }
+        draw() { ctx.beginPath(); ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y); ctx.lineTo(this.x, this.y); ctx.strokeStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, ${this.alpha})`; ctx.lineWidth = 2; ctx.stroke(); }
     }
-
     function createFirework(sx, sy, tx, ty) { fireworks.push(new Firework(sx, sy, tx, ty)); }
     function createParticles(x, y, hue) { for (let i = 0; i < CONFIG.particleCount; i++) particles.push(new Particle(x, y, hue)); }
-
-    canvas.addEventListener('mousedown', (e) => {
-        // 从城堡底部中心升起
-        createFirework(clientW / 2, clientH, e.clientX, e.clientY);
-    });
-
-    window.addEventListener('resize', () => {
-        clientW = canvas.width = window.innerWidth;
-        clientH = canvas.height = window.innerHeight;
-    });
-
+    canvas.addEventListener('mousedown', (e) => { createFirework(W / 2, H, e.clientX, e.clientY); });
+    window.addEventListener('resize', () => { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; });
+    let tick = 0;
     function loop() {
         requestAnimationFrame(loop);
-        
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
-        ctx.fillRect(0, 0, clientW, clientH);
+        ctx.globalCompositeOperation = 'destination-out'; ctx.fillStyle = 'rgba(0, 0, 0, 0.2)'; ctx.fillRect(0, 0, W, H);
         ctx.globalCompositeOperation = 'lighter';
-        
-        let i = fireworks.length; while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
-        let j = particles.length; while(j--) { particles[j].draw(); particles[j].update(j); }
-        
-        // 绘制霓虹轮廓城堡
-        drawCastle();
-        
-        if (CONFIG.autoFirework) {
-            let timerTick = (window.tick || 0) + 1;
-            window.tick = timerTick;
-            if (timerTick >= CONFIG.autoInterval) {
-                createFirework(random(clientW * 0.1, clientW * 0.9), clientH, random(clientW * 0.1, clientW * 0.9), random(clientH * 0.1, clientH * 0.4));
-                window.tick = 0;
-            }
-        }
+        for(let i = fireworks.length - 1; i >= 0; i--) { fireworks[i].draw(); fireworks[i].update(i); }
+        for(let i = particles.length - 1; i >= 0; i--) { particles[i].draw(); particles[i].update(i); }
+        drawDisneyCastle();
+        if (CONFIG.autoFirework) { tick++; if (tick >= CONFIG.autoInterval) { createFirework(random(W * 0.15, W * 0.85), H, random(W * 0.15, W * 0.85), random(H * 0.1, H * 0.4)); tick = 0; } }
     }
-
     loop();
     </script>
 </body>
