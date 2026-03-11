@@ -2,169 +2,121 @@
 <html>
 <head lang="zh-CN">
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎆 浪漫烟花</title>
+    <title>🎆 烟花</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: black; overflow: hidden; font-family: 'Microsoft YaHei', sans-serif; }
-        #mycanvas { display: block; cursor: crosshair; }
-        #hint {
-            position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%);
-            color: rgba(255,255,255,0.6); font-size: 18px;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+        * { margin: 0; padding: 0; }
+        body { background: #000; overflow: hidden; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <canvas id="mycanvas"></canvas>
-    <div id="hint">点击屏幕 🎆 发送烟花</div>
-    
+    <canvas id="canvas"></canvas>
     <script>
-    const CONFIG = {
-        particleCount: 150,
-        gravity: 0.15,
-        friction: 0.96,
-        autoFirework: true,
-        autoInterval: 800,
-        textMessages: ["新年快乐", "Happy New Year", "🎊 新春快乐 🎊", "万事如意"]
-    };
-
-    const canvas = document.getElementById("mycanvas");
-    const ctx = canvas.getContext("2d");
-    let clientW = canvas.width = window.innerWidth;
-    let clientH = canvas.height = window.innerHeight;
-
-    let hue = 0;
-    let timerTick = 0;
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    let W = canvas.width = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+    
     let fireworks = [];
     let particles = [];
-    let texts = [];
+    let hue = 0;
+
+    window.addEventListener('resize', () => {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+    });
+
+    canvas.addEventListener('click', (e) => {
+        fireworks.push(new Firework(W/2, H, e.clientX, e.clientY));
+    });
 
     function random(min, max) { return Math.random() * (max - min) + min; }
-    function distance(sx, sy, tx, ty) { return Math.sqrt((tx - sx) ** 2 + (ty - sy) ** 2); }
 
     class Firework {
         constructor(sx, sy, tx, ty) {
-            this.x = sx; this.y = sy; this.sx = sx; this.sy = sy;
+            this.x = sx; this.y = sy;
+            this.sx = sx; this.sy = sy;
             this.tx = tx; this.ty = ty;
-            this.targetDistance = distance(sx, sy, tx, ty);
-            this.distanceTraveled = 0;
-            this.trail = []; this.trailLength = 5;
+            this.dist = Math.hypot(tx - sx, ty - sy);
+            this.len = 0;
             this.angle = Math.atan2(ty - sy, tx - sx);
-            this.speed = 2; this.acceleration = 1.05;
-            this.brightness = random(50, 70);
+            this.speed = 2;
+            this.acc = 1.05;
         }
-        update(index) {
-            this.trail.pop(); this.trail.unshift({x: this.x, y: this.y});
-            this.speed *= this.acceleration;
-            const vx = Math.cos(this.angle) * this.speed;
-            const vy = Math.sin(this.angle) * this.speed;
-            this.distanceTraveled = distance(this.sx, this.sy, this.x + vx, this.y + vy);
-            if (this.distanceTraveled >= this.targetDistance) {
-                createParticles(this.tx, this.ty);
-                createText(this.tx, this.ty);
-                fireworks.splice(index, 1);
-            } else { this.x += vx; this.y += vy; }
+        update() {
+            this.speed *= this.acc;
+            this.len += this.speed;
+            this.x = this.sx + Math.cos(this.angle) * this.len;
+            this.y = this.sy + Math.sin(this.angle) * this.len;
+            return this.len >= this.dist;
         }
         draw() {
             ctx.beginPath();
-            ctx.moveTo(this.trail[0].x, this.trail[0].y);
-            for (let i = 1; i < this.trail.length; i++) ctx.lineTo(this.trail[i].x, this.trail[i].y);
+            ctx.moveTo(this.sx, this.sy);
             ctx.lineTo(this.x, this.y);
-            ctx.strokeStyle = `hsl(${hue}, 100%, ${this.brightness}%)`;
-            ctx.lineWidth = 2; ctx.stroke();
+            ctx.strokeStyle = 'hsl('+hue+',100%,60%)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         }
     }
 
     class Particle {
         constructor(x, y) {
-            this.x = x; this.y = y; this.trail = []; this.trailLength = 8;
+            this.x = x; this.y = y;
             this.angle = random(0, Math.PI * 2);
-            this.speed = random(1, 12);
-            this.friction = CONFIG.friction; this.gravity = CONFIG.gravity;
+            this.speed = random(1, 10);
+            this.friction = 0.95;
+            this.gravity = 0.1;
             this.hue = random(hue - 30, hue + 30);
-            this.brightness = random(50, 90);
-            this.alpha = 1; this.decay = random(0.015, 0.03);
+            this.alpha = 1;
+            this.decay = random(0.01, 0.02);
         }
-        update(index) {
-            this.trail.pop(); this.trail.unshift({x: this.x, y: this.y});
+        update() {
             this.speed *= this.friction;
             this.x += Math.cos(this.angle) * this.speed;
             this.y += Math.sin(this.angle) * this.speed + this.gravity;
             this.alpha -= this.decay;
-            if (this.alpha <= this.decay) particles.splice(index, 1);
+            return this.alpha <= 0;
         }
         draw() {
             ctx.beginPath();
-            if (this.trail.length > 1) {
-                ctx.moveTo(this.trail[0].x, this.trail[0].y);
-                for (let i = 1; i < this.trail.length; i++) ctx.lineTo(this.trail[i].x, this.trail[i].y);
-            }
-            ctx.lineTo(this.x, this.y);
-            ctx.strokeStyle = `hsla(${this.hue}, 100%, ${this.brightness}%, ${this.alpha})`;
-            ctx.lineWidth = 2; ctx.stroke();
+            ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+            ctx.fillStyle = 'hsla('+this.hue+',100%,60%,'+this.alpha+')';
+            ctx.fill();
         }
     }
 
-    class FloatingText {
-        constructor(x, y, text) {
-            this.x = x; this.y = y; this.text = text;
-            this.alpha = 1; this.velocity = -2;
-            this.hue = random(0, 360);
-        }
-        update(index) {
-            this.y += this.velocity; this.alpha -= 0.008;
-            if (this.alpha <= 0) texts.splice(index, 1);
-        }
-        draw() {
-            ctx.font = "bold 40px 'Microsoft YaHei', sans-serif";
-            ctx.textAlign = "center";
-            ctx.fillStyle = `hsla(${this.hue}, 100%, 60%, ${this.alpha})`;
-            ctx.shadowColor = `hsla(${this.hue}, 100%, 50%, ${this.alpha})`;
-            ctx.shadowBlur = 20;
-            ctx.fillText(this.text, this.x, this.y);
-            ctx.shadowBlur = 0;
+    function explode(x, y) {
+        for(let i = 0; i < 50; i++) {
+            particles.push(new Particle(x, y));
         }
     }
 
-    function createFirework(sx, sy, tx, ty) { fireworks.push(new Firework(sx, sy, tx, ty)); }
-    function createParticles(x, y) { for (let i = 0; i < CONFIG.particleCount; i++) particles.push(new Particle(x, y)); }
-    function createText(x, y) { if (Math.random() > 0.7) { const text = CONFIG.textMessages[Math.floor(Math.random() * CONFIG.textMessages.length)]; texts.push(new FloatingText(x, y - 50, text)); } }
-
-    canvas.addEventListener('click', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        createFirework(clientW / 2, clientH, e.clientX - rect.left, e.clientY - rect.top);
-    });
-
-    window.addEventListener('resize', () => {
-        clientW = canvas.width = window.innerWidth;
-        clientH = canvas.height = window.innerHeight;
-    });
+    setInterval(() => {
+        fireworks.push(new Firework(random(100, W-100), H, random(100, W-100), random(100, H/2)));
+    }, 800);
 
     function loop() {
         requestAnimationFrame(loop);
-        hue = (hue + 0.5) % 360;
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
-        ctx.fillRect(0, 0, clientW, clientH);
-        ctx.globalCompositeOperation = 'lighter';
+        hue = (hue + 1) % 360;
+        ctx.fillStyle = 'rgba(0,0,0,0.1)';
+        ctx.fillRect(0, 0, W, H);
         
-        for (let i = fireworks.length - 1; i >= 0; i--) { fireworks[i].draw(); fireworks[i].update(i); }
-        for (let i = particles.length - 1; i >= 0; i--) { particles[i].draw(); particles[i].update(i); }
-        for (let i = texts.length - 1; i >= 0; i--) { texts[i].draw(); texts[i].update(i); }
-        
-        if (CONFIG.autoFirework) {
-            timerTick++;
-            if (timerTick >= CONFIG.autoInterval / 16.67) {
-                createFirework(random(50, clientW - 50), clientH, random(50, clientW - 50), random(50, clientH / 2));
-                timerTick = 0;
+        for(let i = fireworks.length - 1; i >= 0; i--) {
+            fireworks[i].draw();
+            if(fireworks[i].update()) {
+                explode(fireworks[i].tx, fireworks[i].ty);
+                fireworks.splice(i, 1);
             }
         }
-    }
-
-    for (let i = 0; i < 3; i++) {
-        setTimeout(() => createFirework(random(100, clientW - 100), clientH, random(100, clientW - 100), random(100, clientH / 2)), i * 500);
+        
+        for(let i = particles.length - 1; i >= 0; i--) {
+            particles[i].draw();
+            if(particles[i].update()) {
+                particles.splice(i, 1);
+            }
+        }
     }
 
     loop();
