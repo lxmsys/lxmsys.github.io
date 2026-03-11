@@ -6,7 +6,7 @@
     <title>hihi</title>
     <style>
         * { margin: 0; padding: 0; }
-        body { background: #020205; overflow: hidden; cursor: crosshair; }
+        body { background: #010105; overflow: hidden; cursor: crosshair; }
         canvas { display: block; }
     </style>
 </head>
@@ -16,11 +16,11 @@
     <script>
     const CONFIG = {
         particleCount: 160,     
-        gravity: 0.08,          
-        friction: 0.96,        
+        gravity: 0.1,          
+        friction: 0.95,        
         autoFirework: true,
-        autoInterval: 35,
-        palettes: [180, 200, 280, 320, 40] 
+        autoInterval: 45,
+        palettes: [180, 200, 280, 320, 45] 
     };
 
     const canvas = document.getElementById("mycanvas");
@@ -31,52 +31,54 @@
     let fireworks = [], particles = [];
     let currentHue = 180;
 
-    // --- 城堡 2.0：几何梦幻设计 ---
+    // --- 城堡 3.0：线条勾勒梦幻版 ---
     function drawCastle() {
         const cx = clientW / 2;
-        const b = clientH;
+        const b = clientH - 5;
         
         ctx.save();
         ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = `hsla(${currentHue}, 90%, 60%, 0.25)`;
+        ctx.lineWidth = 1;
         ctx.shadowBlur = 10;
-        ctx.shadowColor = `hsla(${currentHue}, 100%, 50%, 0.5)`;
-        ctx.strokeStyle = `hsla(${currentHue}, 80%, 60%, 0.25)`;
-        ctx.lineWidth = 1.5;
+        ctx.shadowColor = `hsla(${currentHue}, 100%, 50%, 0.4)`;
 
-        // 绘制一组几何尖塔
+        // 绘制一组细长的梦幻尖塔
         function tower(x, w, h) {
             ctx.strokeRect(x - w/2, b - h, w, h);
+            // 尖顶细化
             ctx.beginPath();
-            ctx.moveTo(x - w/2 - 5, b - h);
-            ctx.lineTo(x, b - h - w);
-            ctx.lineTo(x + w/2 + 5, b - h);
+            ctx.moveTo(x - w/2, b - h);
+            ctx.lineTo(x, b - h - w * 1.5);
+            ctx.lineTo(x + w/2, b - h);
+            ctx.stroke();
+            // 内部装饰线
+            ctx.beginPath();
+            ctx.moveTo(x, b);
+            ctx.lineTo(x, b - h);
             ctx.stroke();
         }
 
-        tower(cx, 40, 180);      // 主塔
-        tower(cx - 70, 25, 120); // 左副塔
-        tower(cx + 70, 25, 120); // 右副塔
-        tower(cx - 130, 15, 70); // 左裙楼
-        tower(cx + 130, 15, 70); // 右裙楼
-
+        tower(cx, 30, 200);      // 主塔
+        tower(cx - 60, 20, 140); // 左侧塔
+        tower(cx + 60, 20, 140); // 右侧塔
+        tower(cx - 110, 15, 80); // 裙楼
+        tower(cx + 110, 15, 80); // 裙楼
+        
         ctx.restore();
     }
 
-    // --- 定点获取逻辑 ---
-    function getLaunchPoint() {
+    // --- 核心修改：从城堡底部的随机区域发射 ---
+    function getLaunchX() {
         const cx = clientW / 2;
-        // 随机从主塔或侧塔发射
-        const points = [
-            {x: cx, y: clientH - 180},
-            {x: cx - 70, y: clientH - 120},
-            {x: cx + 70, y: clientH - 120}
-        ];
-        return points[Math.floor(Math.random() * points.length)];
+        // 在城堡宽度范围内随机选择发射点
+        return random(cx - 140, cx + 140);
     }
 
     class Firework {
         constructor(sx, sy, tx, ty) {
             this.x = sx; this.y = sy;
+            this.sx = sx; this.sy = sy;
             this.tx = tx; this.ty = ty;
             this.trail = [];
             this.trailLength = 4;
@@ -108,8 +110,8 @@
             ctx.beginPath();
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             ctx.lineTo(this.x, this.y);
-            ctx.strokeStyle = `hsla(${this.hue}, 100%, 80%, 0.8)`;
-            ctx.lineWidth = 2; 
+            ctx.strokeStyle = `hsla(${this.hue}, 100%, 80%, 0.9)`;
+            ctx.lineWidth = 1.5; 
             ctx.stroke();
         }
     }
@@ -117,15 +119,15 @@
     class Particle {
         constructor(x, y, baseHue) {
             this.x = x; this.y = y;
-            this.trail = []; this.trailLength = 10; // 极光长拖尾
+            this.trail = []; this.trailLength = 8; 
             while(this.trailLength--) { this.trail.push({x: x, y: y}); }
             this.angle = random(0, Math.PI * 2);
-            this.speed = random(1, 8);
+            this.speed = random(1, 9);
             this.friction = CONFIG.friction; 
             this.gravity = CONFIG.gravity;
             this.hue = random(baseHue - 20, baseHue + 20);
             this.alpha = 1; 
-            this.decay = random(0.01, 0.02);
+            this.decay = random(0.01, 0.022);
         }
         update(index) {
             this.trail.pop(); 
@@ -141,7 +143,7 @@
             ctx.moveTo(this.trail[this.trail.length - 1].x, this.trail[this.trail.length - 1].y);
             for(let i=this.trail.length-2; i>=0; i--) ctx.lineTo(this.trail[i].x, this.trail[i].y);
             ctx.strokeStyle = `hsla(${this.hue}, 100%, 65%, ${this.alpha})`;
-            ctx.lineWidth = 1.5; 
+            ctx.lineWidth = 2; 
             ctx.stroke();
         }
     }
@@ -151,8 +153,8 @@
     }
 
     canvas.addEventListener('mousedown', (e) => {
-        const lp = getLaunchPoint();
-        fireworks.push(new Firework(lp.x, lp.y, e.clientX, e.clientY));
+        // 点击释放也从城堡底部范围升起
+        fireworks.push(new Firework(getLaunchX(), clientH, e.clientX, e.clientY));
     });
 
     window.addEventListener('resize', () => {
@@ -163,7 +165,7 @@
     function loop() {
         requestAnimationFrame(loop);
         ctx.globalCompositeOperation = 'source-over';
-        ctx.fillStyle = 'rgba(1, 1, 5, 0.18)'; 
+        ctx.fillStyle = 'rgba(0, 0, 5, 0.2)'; 
         ctx.fillRect(0, 0, clientW, clientH);
         
         drawCastle();
@@ -176,8 +178,8 @@
             let timerTick = (window.tick || 0) + 1;
             window.tick = timerTick;
             if (timerTick >= CONFIG.autoInterval) {
-                const lp = getLaunchPoint();
-                fireworks.push(new Firework(lp.x, lp.y, random(clientW*0.1, clientW*0.9), random(clientH*0.1, clientH*0.5)));
+                // 自动释放点锁定在城堡底部区域
+                fireworks.push(new Firework(getLaunchX(), clientH, random(clientW*0.1, clientW*0.9), random(clientH*0.1, clientH*0.5)));
                 window.tick = 0;
             }
         }
