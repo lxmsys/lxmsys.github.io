@@ -35,51 +35,74 @@
     function random(min, max) { return Math.random() * (max - min) + min; }
     function distance(x1, y1, x2, y2) { return Math.sqrt((x2-x1)**2 + (y2-y1)**2); }
 
-    // --- 仅在此处进行了迪士尼风格的精细化替换，其余逻辑未动 ---
+    // --- 精细化迪士尼风格城堡绘制逻辑 ---
     function drawCastle() {
         const cx = clientW / 2;
-        const b = clientH - 5;
+        const b = clientH;
         
         ctx.save();
-        ctx.fillStyle = "rgba(5, 5, 15, 0.8)";
-        ctx.strokeStyle = `hsla(${currentHue}, 90%, 65%, 0.4)`;
-        ctx.lineWidth = 1.2;
-        ctx.shadowBlur = 15;
+        ctx.globalCompositeOperation = 'source-over';
+        
+        // 霓虹发光设置
+        ctx.strokeStyle = `hsla(${currentHue}, 100%, 70%, 0.4)`;
+        ctx.fillStyle = `hsla(${currentHue}, 100%, 10%, 0.7)`; // 城堡主体带一点深色填充
+        ctx.lineWidth = 1.5;
+        ctx.shadowBlur = 20;
         ctx.shadowColor = `hsla(${currentHue}, 100%, 50%, 0.5)`;
 
-        function drawTower(x, width, height, hasSpire = true) {
-            const top = b - height;
-            ctx.strokeRect(x - width/2, top, width, height);
-            ctx.fillRect(x - width/2, top, width, height);
-            if (hasSpire) {
+        // 绘制塔楼的通用函数
+        function tower(x, w, h, roofH, hasFlag = false) {
+            // 塔身
+            ctx.beginPath();
+            ctx.rect(x - w/2, b - h, w, h);
+            ctx.fill();
+            ctx.stroke();
+
+            // 塔屋顶 (带有弧度的圆锥顶)
+            ctx.beginPath();
+            ctx.moveTo(x - w/2 - 2, b - h);
+            ctx.quadraticCurveTo(x, b - h - roofH, x + w/2 + 2, b - h);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+
+            // 旗杆
+            if (hasFlag) {
                 ctx.beginPath();
-                ctx.moveTo(x - width/2 - 2, top);
-                ctx.quadraticCurveTo(x, top - width * 1.8, x + width/2 + 2, top);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(x, top - width * 1.5);
-                ctx.lineTo(x, top - width * 2.2);
+                ctx.moveTo(x, b - h - roofH * 0.8);
+                ctx.lineTo(x, b - h - roofH - 15);
                 ctx.stroke();
             }
-            if (width > 15) ctx.strokeRect(x - 3, top + 20, 6, 10);
         }
 
-        drawTower(cx - 140, 30, 60, false);
-        drawTower(cx + 140, 30, 60, false);
-        drawTower(cx - 100, 25, 120);
-        drawTower(cx + 100, 25, 120);
-        drawTower(cx - 45, 35, 160);
-        drawTower(cx + 45, 35, 160);
-        drawTower(cx, 45, 240);
+        // 1. 最底层楼座
         ctx.beginPath();
-        ctx.arc(cx, b, 25, Math.PI, 0);
+        ctx.rect(cx - 150, b - 50, 300, 50);
+        ctx.fill(); ctx.stroke();
+
+        // 2. 两侧基座塔
+        tower(cx - 120, 40, 90, 60);
+        tower(cx + 120, 40, 90, 60);
+
+        // 3. 次级主塔 (中间两根)
+        tower(cx - 55, 35, 160, 80, true);
+        tower(cx + 55, 35, 160, 80, true);
+
+        // 4. 最高主塔
+        tower(cx, 50, 220, 110, true);
+
+        // 5. 底部装饰拱门
+        ctx.beginPath();
+        ctx.arc(cx, b - 5, 25, Math.PI, 0);
         ctx.stroke();
+        
         ctx.restore();
     }
 
     class Firework {
         constructor(sx, sy, tx, ty) {
-            this.x = sx; this.y = sy; this.sx = sx; this.sy = sy;
+            this.x = sx; this.y = sy;
+            this.sx = sx; this.sy = sy;
             this.tx = tx; this.ty = ty;
             this.trail = [];
             let len = 5; while(len--) this.trail.push({x: sx, y: sy});
@@ -164,10 +187,13 @@
         ctx.globalCompositeOperation = 'source-over';
         ctx.fillStyle = 'rgba(0, 0, 0, 0.22)'; 
         ctx.fillRect(0, 0, clientW, clientH);
+        
         drawCastle();
+        
         ctx.globalCompositeOperation = 'lighter';
         let i = fireworks.length; while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
         let j = particles.length; while(j--) { particles[j].draw(); particles[j].update(j); }
+        
         if (CONFIG.autoFirework) {
             tick++;
             if (tick >= CONFIG.autoInterval) { launch(); tick = 0; }
