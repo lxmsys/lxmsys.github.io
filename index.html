@@ -1,19 +1,12 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🎇 赛博震撼烟花</title>
+    <title>✨ 丝滑浪漫烟花</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; overflow: hidden; }
+        body { margin: 0; background: #000; overflow: hidden; }
         canvas { display: block; }
-        /* 增加一个全局光晕效果 */
-        body::after {
-            content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(circle, transparent 70%, rgba(0,0,0,0.8) 100%);
-            pointer-events: none;
-        }
     </style>
 </head>
 <body>
@@ -21,63 +14,57 @@
 
 <script>
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d');
+const ctx = canvas.getContext('2d', { alpha: false }); // 优化：关闭透明通道提升性能
 let width = canvas.width = window.innerWidth;
 let height = canvas.height = window.innerHeight;
 
-// 酷炫配置
 const SETTINGS = {
-    pCount: 180,           // 爆炸粒子数
-    gravity: 0.12,         // 重力
-    friction: 0.94,        // 空气摩擦
-    shakeIntensity: 4,     // 爆炸震动强度
-    colors: [0, 30, 180, 240, 300, 330] // 选定高对比色相
+    maxParticles: 800,    // 严格限制总数，防止卡顿
+    pCount: 80,           // 单次爆炸粒子数
+    gravity: 0.1,
+    friction: 0.95,
+    colors: [30, 200, 280, 0, 150] 
 };
 
-let fireworks = [], particles = [], shakeTime = 0;
+let fireworks = [], particles = [];
 
 function random(min, max) { return Math.random() * (max - min) + min; }
 
 class Firework {
-    constructor() {
-        this.reset();
-    }
-    reset(tx = random(width * 0.1, width * 0.9), ty = random(height * 0.1, height * 0.4)) {
-        this.x = random(width * 0.3, width * 0.7);
-        this.y = height;
-        this.tx = tx;
-        this.ty = ty;
+    constructor(sx, sy, tx, ty) {
+        this.x = sx; this.y = sy;
+        this.tx = tx; this.ty = ty;
         this.hue = SETTINGS.colors[Math.floor(Math.random() * SETTINGS.colors.length)];
-        this.speed = random(2, 4);
-        this.acc = 1.05;
-        this.alpha = 1;
+        this.speed = 2;
+        this.acc = 1.04;
+        this.angle = Math.atan2(ty - sy, tx - sx);
+        this.dist = Math.sqrt((tx-sx)**2 + (ty-sy)**2);
+        this.traveled = 0;
     }
     update(idx) {
-        let dx = this.tx - this.x;
-        let dy = this.ty - this.y;
-        let dist = Math.sqrt(dx*dx + dy*dy);
+        this.speed *= this.acc;
+        let vx = Math.cos(this.angle) * this.speed;
+        let vy = Math.sin(this.angle) * this.speed;
+        this.x += vx; this.y += vy;
+        this.traveled += Math.sqrt(vx*vx + vy*vy);
         
-        if(dist < 10) {
+        if(this.traveled >= this.dist) {
             this.explode();
             fireworks.splice(idx, 1);
-        } else {
-            let angle = Math.atan2(dy, dx);
-            this.speed *= this.acc;
-            this.x += Math.cos(angle) * this.speed;
-            this.y += Math.sin(angle) * this.speed;
         }
     }
     draw() {
-        ctx.save();
+        ctx.strokeStyle = `hsl(${this.hue}, 100%, 70%)`;
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, 2, 0, Math.PI*2);
-        ctx.fillStyle = `hsla(${this.hue}, 100%, 70%, 1)`;
-        ctx.fill();
-        ctx.restore();
+        ctx.moveTo(this.x - Math.cos(this.angle)*5, this.y - Math.sin(this.angle)*5);
+        ctx.lineTo(this.x, this.y);
+        ctx.stroke();
     }
     explode() {
-        shakeTime = SETTINGS.shakeIntensity; // 触发震屏
-        for(let i=0; i<SETTINGS.pCount; i++) {
+        // 限制粒子爆发，如果屏幕粒子太多就少生点
+        let count = particles.length > SETTINGS.maxParticles ? 20 : SETTINGS.pCount;
+        for(let i=0; i<count; i++) {
             particles.push(new Particle(this.tx, this.ty, this.hue));
         }
     }
@@ -88,63 +75,43 @@ class Particle {
         this.x = x; this.y = y;
         this.hue = hue;
         this.angle = random(0, Math.PI * 2);
-        this.speed = random(1, 15);
-        this.friction = SETTINGS.friction;
-        this.gravity = SETTINGS.gravity;
+        this.speed = random(1, 8);
         this.alpha = 1;
-        this.decay = random(0.01, 0.02);
-        this.shimmer = random(0, 1) > 0.5; // 是否闪烁
+        this.decay = random(0.015, 0.03);
     }
     update(idx) {
-        this.speed *= this.friction;
+        this.speed *= SETTINGS.friction;
         this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed + this.gravity;
+        this.y += Math.sin(this.angle) * this.speed + SETTINGS.gravity;
         this.alpha -= this.decay;
         if(this.alpha <= 0) particles.splice(idx, 1);
     }
     draw() {
-        ctx.save();
-        // 核心技术：闪烁逻辑
-        let alpha = this.shimmer ? (Math.random() > 0.5 ? this.alpha : 0.2) : this.alpha;
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, random(0.5, 2), 0, Math.PI*2);
-        ctx.fillStyle = `hsla(${this.hue}, 100%, ${60 + (1-this.alpha)*40}%, ${alpha})`;
-        // 增加发光效果
-        ctx.shadowBlur = this.alpha * 10;
-        ctx.shadowColor = `hsl(${this.hue}, 100%, 50%)`;
-        ctx.fill();
-        ctx.restore();
+        // 性能关键：不再使用 shadowBlur
+        ctx.fillStyle = `hsla(${this.hue}, 100%, 60%, ${this.alpha})`;
+        ctx.fillRect(this.x, this.y, 2, 2); // 用 fillRect 代替 arc 性能更好
     }
 }
 
 function loop() {
-    // 震屏逻辑
-    let sx = 0, sy = 0;
-    if(shakeTime > 0) {
-        sx = random(-shakeTime, shakeTime);
-        sy = random(-shakeTime, shakeTime);
-        shakeTime -= 0.5;
-    }
-
-    ctx.setTransform(1, 0, 0, 1, sx, sy); // 应用震动
-
-    ctx.globalCompositeOperation = 'destination-out';
+    // 快速清屏
+    ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
-    ctx.fillRect(-100, -100, width + 200, height + 200);
+    ctx.fillRect(0, 0, width, height);
+    
     ctx.globalCompositeOperation = 'lighter';
 
-    fireworks.forEach((f, i) => { f.draw(); f.update(i); });
-    particles.forEach((p, i) => { p.draw(); p.update(i); });
+    let i = fireworks.length; while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
+    let j = particles.length; while(j--) { particles[j].draw(); particles[j].update(j); }
 
-    if(Math.random() < 0.05) fireworks.push(new Firework());
-
+    if(Math.random() < 0.03) {
+        fireworks.push(new Firework(random(width*0.2, width*0.8), height, random(width*0.1, width*0.9), random(height*0.1, height*0.4)));
+    }
     requestAnimationFrame(loop);
 }
 
 window.addEventListener('mousedown', (e) => {
-    let f = new Firework();
-    f.reset(e.clientX, e.clientY);
-    fireworks.push(f);
+    fireworks.push(new Firework(width/2, height, e.clientX, e.clientY));
 });
 
 window.addEventListener('resize', () => {
