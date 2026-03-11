@@ -1,117 +1,206 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>✨ 丝滑浪漫烟花</title>
+    <title>hihi</title>
     <style>
-        body { margin: 0; background: #000; overflow: hidden; }
+        * { margin: 0; padding: 0; }
+        body { background: #010105; overflow: hidden; cursor: crosshair; }
         canvas { display: block; }
+        #bg-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 50% 90%, #0a0c24 0%, #000 80%);
+            pointer-events: none; z-index: -1;
+        }
     </style>
 </head>
 <body>
+    <div id="bg-overlay"></div>
     <canvas id="canvas"></canvas>
 
 <script>
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d', { alpha: false }); // 优化：关闭透明通道提升性能
+const ctx = canvas.getContext('2d', { alpha: false });
 let width = canvas.width = window.innerWidth;
 let height = canvas.height = window.innerHeight;
 
-const SETTINGS = {
-    maxParticles: 800,    // 严格限制总数，防止卡顿
-    pCount: 80,           // 单次爆炸粒子数
-    gravity: 0.1,
-    friction: 0.95,
-    colors: [30, 200, 280, 0, 150] 
-};
+// 迪士尼梦幻调色盘
+const COLORS = [
+    { h: 42, s: 100, l: 60 },  // 璀璨金
+    { h: 335, s: 90, l: 70 },  // 仙女粉
+    { h: 195, s: 100, l: 75 }, // 冰晶蓝
+    { h: 280, s: 85, l: 65 },  // 皇家紫
+    { h: 15, s: 100, l: 65 }   // 极光红
+];
 
-let fireworks = [], particles = [];
+let fireworks = [], particles = [], stars = [];
+let mouse = { x: -1000, y: -1000 };
+
+// 初始化背景星空
+for(let i=0; i<100; i++) {
+    stars.push({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        size: Math.random() * 1.8,
+        baseOpacity: Math.random() * 0.8,
+        vx: 0, vy: 0
+    });
+}
 
 function random(min, max) { return Math.random() * (max - min) + min; }
+
+// --- 动态环境光城堡逻辑 ---
+function drawCastle() {
+    let avgHue = 40;
+    let intensity = 0;
+    
+    if (particles.length > 0) {
+        const sample = Math.min(particles.length, 30);
+        let sumH = 0, sumA = 0;
+        for(let i=0; i<sample; i++) {
+            sumH += particles[i].color.h;
+            sumA += particles[i].alpha;
+        }
+        avgHue = sumH / sample;
+        intensity = Math.min(sumA / sample, 0.6);
+    }
+
+    const cw = width / 2;
+    const b = height;
+
+    ctx.save();
+    // 城堡主体
+    ctx.fillStyle = "#02020a";
+    ctx.beginPath();
+    ctx.moveTo(cw - 160, b);
+    ctx.lineTo(cw - 160, b - 90);
+    ctx.lineTo(cw - 120, b - 140);
+    ctx.lineTo(cw - 80, b - 90);
+    ctx.lineTo(cw - 60, b - 200);
+    ctx.lineTo(cw, b - 280); // 主尖塔
+    ctx.lineTo(cw + 60, b - 200);
+    ctx.lineTo(cw + 80, b - 90);
+    ctx.lineTo(cw + 120, b - 140);
+    ctx.lineTo(cw + 160, b - 90);
+    ctx.lineTo(cw + 160, b);
+    ctx.fill();
+
+    // 动态光照效果
+    if (intensity > 0.02) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = `hsla(${avgHue}, 100%, 65%, ${intensity * 0.5})`;
+        ctx.lineWidth = 2;
+        ctx.shadowBlur = 15 * intensity;
+        ctx.shadowColor = `hsl(${avgHue}, 100%, 50%)`;
+        ctx.stroke();
+    }
+    ctx.restore();
+}
 
 class Firework {
     constructor(sx, sy, tx, ty) {
         this.x = sx; this.y = sy;
         this.tx = tx; this.ty = ty;
-        this.hue = SETTINGS.colors[Math.floor(Math.random() * SETTINGS.colors.length)];
-        this.speed = 2;
-        this.acc = 1.04;
+        this.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+        this.speed = 1.8;
+        this.acc = 1.05;
         this.angle = Math.atan2(ty - sy, tx - sx);
-        this.dist = Math.sqrt((tx-sx)**2 + (ty-sy)**2);
-        this.traveled = 0;
+        this.targetDist = Math.sqrt((tx-sx)**2 + (ty-sy)**2);
+        this.distTraveled = 0;
     }
     update(idx) {
         this.speed *= this.acc;
         let vx = Math.cos(this.angle) * this.speed;
         let vy = Math.sin(this.angle) * this.speed;
         this.x += vx; this.y += vy;
-        this.traveled += Math.sqrt(vx*vx + vy*vy);
-        
-        if(this.traveled >= this.dist) {
-            this.explode();
+        this.distTraveled += this.speed;
+        if(this.distTraveled >= this.targetDist) {
+            for(let i=0; i<160; i++) particles.push(new Particle(this.tx, this.ty, this.color));
             fireworks.splice(idx, 1);
         }
     }
     draw() {
-        ctx.strokeStyle = `hsl(${this.hue}, 100%, 70%)`;
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = `hsl(${this.color.h}, 100%, 85%)`;
+        ctx.lineWidth = 1.8;
         ctx.beginPath();
-        ctx.moveTo(this.x - Math.cos(this.angle)*5, this.y - Math.sin(this.angle)*5);
-        ctx.lineTo(this.x, this.y);
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x - Math.cos(this.angle)*12, this.y - Math.sin(this.angle)*12);
         ctx.stroke();
-    }
-    explode() {
-        // 限制粒子爆发，如果屏幕粒子太多就少生点
-        let count = particles.length > SETTINGS.maxParticles ? 20 : SETTINGS.pCount;
-        for(let i=0; i<count; i++) {
-            particles.push(new Particle(this.tx, this.ty, this.hue));
-        }
     }
 }
 
 class Particle {
-    constructor(x, y, hue) {
+    constructor(x, y, color) {
         this.x = x; this.y = y;
-        this.hue = hue;
+        this.color = { ...color };
+        this.color.h += random(-15, 15);
         this.angle = random(0, Math.PI * 2);
-        this.speed = random(1, 8);
+        this.speed = random(0.6, 7);
+        this.friction = 0.95;
+        this.gravity = 0.09;
         this.alpha = 1;
-        this.decay = random(0.015, 0.03);
+        this.decay = random(0.012, 0.022);
+        this.sparkle = Math.random() > 0.8;
     }
     update(idx) {
-        this.speed *= SETTINGS.friction;
+        this.speed *= this.friction;
         this.x += Math.cos(this.angle) * this.speed;
-        this.y += Math.sin(this.angle) * this.speed + SETTINGS.gravity;
+        this.y += Math.sin(this.angle) * this.speed + this.gravity;
         this.alpha -= this.decay;
         if(this.alpha <= 0) particles.splice(idx, 1);
     }
     draw() {
-        // 性能关键：不再使用 shadowBlur
-        ctx.fillStyle = `hsla(${this.hue}, 100%, 60%, ${this.alpha})`;
-        ctx.fillRect(this.x, this.y, 2, 2); // 用 fillRect 代替 arc 性能更好
+        let l = this.sparkle && Math.random() > 0.5 ? 95 : this.color.l;
+        ctx.fillStyle = `hsla(${this.color.h}, ${this.color.s}%, ${l}%, ${this.alpha})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, random(0.6, 1.5), 0, Math.PI * 2);
+        ctx.fill();
     }
 }
 
 function loop() {
-    // 快速清屏
+    // 渐隐背景
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.fillStyle = 'rgba(1, 1, 5, 0.22)';
     ctx.fillRect(0, 0, width, height);
-    
+
+    // 星空扰动逻辑
+    stars.forEach(s => {
+        let dx = mouse.x - s.x;
+        let dy = mouse.y - s.y;
+        let d = Math.sqrt(dx*dx + dy*dy);
+        if(d < 150) {
+            s.vx -= dx * 0.0001;
+            s.vy -= dy * 0.0001;
+        }
+        s.vx *= 0.95; s.vy *= 0.95;
+        s.x += s.vx; s.y += s.vy;
+        
+        ctx.fillStyle = `rgba(255, 255, 255, ${s.baseOpacity * (0.5 + Math.random()*0.5)})`;
+        ctx.fillRect(s.x, s.y, s.size, s.size);
+    });
+
     ctx.globalCompositeOperation = 'lighter';
+    fireworks.forEach((f, i) => { f.draw(); f.update(i); });
+    particles.forEach((p, i) => { p.draw(); p.update(i); });
 
-    let i = fireworks.length; while(i--) { fireworks[i].draw(); fireworks[i].update(i); }
-    let j = particles.length; while(j--) { particles[j].draw(); particles[j].update(j); }
+    ctx.globalCompositeOperation = 'source-over';
+    drawCastle();
 
-    if(Math.random() < 0.03) {
-        fireworks.push(new Firework(random(width*0.2, width*0.8), height, random(width*0.1, width*0.9), random(height*0.1, height*0.4)));
+    // 自动发射
+    if(Math.random() < 0.04) {
+        fireworks.push(new Firework(random(width*0.2, width*0.8), height, random(width*0.1, width*0.9), random(height*0.1, height*0.45)));
     }
     requestAnimationFrame(loop);
 }
 
+window.addEventListener('mousemove', (e) => {
+    mouse.x = e.clientX; mouse.y = e.clientY;
+});
+
 window.addEventListener('mousedown', (e) => {
-    fireworks.push(new Firework(width/2, height, e.clientX, e.clientY));
+    fireworks.push(new Firework(width/2, height - 80, e.clientX, e.clientY));
 });
 
 window.addEventListener('resize', () => {
